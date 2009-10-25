@@ -1,27 +1,84 @@
 from __future__ import division
 import sys
 
+from StringIO import StringIO
 from itertools import izip
 
 from rule import Rule
 
+def treeToDeriv(tree):
+    if type(tree[1]) is not tuple:
+        r = Rule()
+        r.setup(tree[0], [tree[1],], 1.0)
+        return [r,]
+    else:
+        r = Rule()
+        rhs = [x[0] for x in tree[1:]]
+        assert(len(rhs) <= 2), "Non-binary rule: %s" % str(rhs)
+        r.setup(tree[0], rhs, 1.0)
+        res = [r,]
+        for subt in tree[1:]:
+            res += treeToDeriv(subt)
+        return res
+
+def treeToTuple(tree):
+    assert(tree[0] == "(")
+    return treeToTupleHelper(tree, 1)[0]
+
+def treeToTupleHelper(tbuf, ind):
+    label = ""
+    word = ""
+    inLabel = True
+    subs = []
+
+    while ind < len(tbuf):
+        char = tbuf[ind]
+        #print char
+        ind += 1
+
+        if char == "(":
+            #print "push", ind
+            (sub, newInd) = treeToTupleHelper(tbuf, ind)
+            subs.append(sub)
+            #print "pop", newInd, subs
+            ind = newInd
+        elif char == ")":
+            if word:
+                return ((label, word), ind)
+            else:
+                assert(subs)
+                return (tuple([label,]+subs), ind)
+        elif char == " ":
+            inLabel = False
+        else:
+            if inLabel:
+                label += char
+            else:
+                word += char
+    assert(False), "Malformed tree, read %s" % char
+
 class TargetParse:
-    def __init__(self, tderiv, level=0, options=[]):
-        self.derivation = []
+    def __init__(self, tderiv, tree=False, level=0, options=[]):
         self.level = level
         self.options = options
 
-        tderiv = tderiv.lstrip("[").rstrip("]")
-        rules = tderiv.split(",")
-        for ruleStr in rules:
-            rule = Rule(ruleStr)
-            self.derivation.append(rule)
+        if tree:
+            self.derivation = treeToDeriv(treeToTuple(tderiv))
+        else:
+            self.derivation = []
+
+            tderiv = tderiv.lstrip("[").rstrip("]")
+            rules = tderiv.split(",")
+            for ruleStr in rules:
+                rule = Rule(ruleStr)
+                self.derivation.append(rule)
 
     def matches(self, ana):
         if ana.level() != self.level:
             return False
 
         for myRule,theirRule in izip(self.derivation, ana.derivation()):
+            #print "check", myRule, theirRule, myRule == theirRule
             if myRule != theirRule:
                 return False
         return True

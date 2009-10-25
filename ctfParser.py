@@ -152,7 +152,9 @@ class HierAnalysis(Analysis):
             if rule.lhs != stackTop:
                 continue
 
-            #print >>sys.stderr, "\t", rule
+            #not standard debug, comment out
+#             if "subhyp" in verbose:
+#                 print >>sys.stderr, "\t", rule
 
             #pass fakes to extend since we don't need a LAP
             newAna = toExpand.extend(rule,
@@ -178,7 +180,7 @@ class HierAnalysis(Analysis):
     def recalcProbHelper(self, foremost):
         res = sum([x.subFOM(self, foremost) for x in self.allUnused()])
         if self.parent:
-            res + self.parent.recalcProbHelper(foremost)
+            res += self.parent.recalcProbHelper(foremost)
         self.prob = res +\
                     sum([x.subFOM(self, foremost) for x in self.subLevelHeap])
         return res
@@ -225,7 +227,7 @@ class CTFParser(Parser):
             if "level" in self.verbose:
                 print >>sys.stderr, "Specifying at level", level
 
-            self.specifyAtLevel(1, level, hyps[i + 1], 1.0, sentence)
+            self.specifyAtLevel(1, level, hyps[i + 1], 1.0, None, sentence)
 
             if "level" in self.verbose:
                 gen = hyps[i + 1]
@@ -257,7 +259,7 @@ class CTFParser(Parser):
             print >>sys.stderr, bestSub.expansionProfile(bestSub)
 
     def specifyAtLevel(self, level, targetLevel, hypsToProcess,
-                       divergence, sentence):
+                       divergence, bestOption, sentence):
         if not hypsToProcess:
             if "specify" in self.verbose:
                 print >>sys.stderr, \
@@ -267,13 +269,30 @@ class CTFParser(Parser):
         processedHyps = []
 
         delta = self.deltas[level - 1] #level 0 has no delta
-        gamma = self.gammas[level]
+        gamma = self.gammas[targetLevel]
 
         nProcessed = 0
 
+        if bestOption is None:
+            assert(level == 1) #examining lvl 0 hyps
+            bestOption = hypsToProcess[0].fom
+
         while self.aboveGeneralThreshold(hypsToProcess,
-                                         processedHyps, gamma):
+                                         processedHyps, bestOption, gamma):
             processing = heapq.heappop(hypsToProcess)
+
+            prevProb = processing.prob
+            processing.recalcProb()
+
+            if processing.prob > prevProb:
+                if "specify" in self.verbose:
+                    print >>sys.stderr, "prob reestimated from", \
+                          prevProb, "to", processing.prob
+                    print >>sys.stderr,\
+                          processing.expansionProfile(processing)
+                heapq.heappush(hypsToProcess, processing)
+                continue
+
             prevProb = processing.prob
             if processedHyps and processedHyps[0].fom < 0:
                 currentDiv = processing.fom / processedHyps[0].fom
@@ -281,16 +300,19 @@ class CTFParser(Parser):
                 currentDiv = 1
 
             if "specify" in self.verbose:
-                print >>sys.stderr, "specifying", processing
+                print >>sys.stderr, "specifying at", level, processing
 
             if level < targetLevel:
                 nProcessed += self.specifyAtLevel(
                     level + 1, targetLevel, processing.subLevelHeap,
-                    divergence * currentDiv, sentence)
+                    divergence * currentDiv, bestOption, sentence)
             else:
                 nProcessed += 1
-                self.specifyHyp(processing, delta, sentence,
+                self.specifyHyp(processing, gamma, bestOption, sentence,
                                 divergence * currentDiv)
+
+#                 self.specifyHyp(processing, delta, sentence,
+#                                 divergence * currentDiv)
 
             processing.recalcProb()
             heapq.heappush(processedHyps, processing)
@@ -307,7 +329,7 @@ class CTFParser(Parser):
 
         return nProcessed
 
-    def aboveGeneralThreshold(self, hyps, completes, gamma):
+    def aboveGeneralThreshold(self, hyps, completes, bestOption, gamma):
         if not hyps:
 
             if "threshold" in self.verbose:
@@ -325,7 +347,7 @@ class CTFParser(Parser):
 
             return True
 
-        bestOption = completes[0].fom
+        #bestOption = completes[0].fom        
         nSpecified = 1 #XXX 
         beam = bestOption * self.beamF(gamma, nSpecified)
 
@@ -337,12 +359,36 @@ class CTFParser(Parser):
         #- sign because minheap so everything is negative
         return expandNext <= beam
 
-    def specifyHyp(self, hyp, delta, sentence, divergence):
+    def greedyToRightEdge(self, hyp, sentence):
+        (step, fom) = hyp.nextStepToSpecify(hyp)
+        if step is None:
+            return
+        #print >>sys.stderr, "stepping", step.allUnused()
+        #print >>sys.stderr, "hyp exp", hyp.expansionProfile(hyp)
+        while step != hyp:
+            step.specifyNext(sentence, hyp, verbose=self.verbose)
+            #print >>sys.stderr, "after spnext"
+
+            #print >>sys.stderr, "hyp exp", hyp.expansionProfile(hyp)
+
+            prevStep = step
+            step = hyp
+            while step.parent is not prevStep:
+                step = step.parent
+            #print >>sys.stderr, "stepped", step.allUnused()
+            if not step.allUnused():
+                #rules simply don't support this search path
+                return
+
+    def specifyHyp(self, hyp, delta, bestOption, sentence, divergence):
+        self.greedyToRightEdge(hyp, sentence)
+
         iters = 0
-        step = self.aboveSpecificThreshold(hyp, delta, divergence)
+        step = self.aboveSpecificThreshold(hyp, delta, bestOption, divergence)
         while step is not None:
             step.specifyNext(sentence, hyp, verbose=self.verbose)
-            step = self.aboveSpecificThreshold(hyp, delta, divergence)
+            step = self.aboveSpecificThreshold(hyp, delta,
+                                               bestOption, divergence)
             iters += 1
 
             if iters > self.stepExpansionLimit:
@@ -351,7 +397,7 @@ class CTFParser(Parser):
 
                 break
 
-    def aboveSpecificThreshold(self, hyp, delta, divergence):
+    def aboveSpecificThreshold(self, hyp, delta, bestOption, divergence):
         (step, fom) = hyp.nextStepToSpecify(hyp)
 
         if not hyp.subLevelHeap:
@@ -360,12 +406,12 @@ class CTFParser(Parser):
 
             return step
 
-        bestOption = hyp.subLevelHeap[0].subFOM(hyp, hyp)
+        #bestOption = hyp.subLevelHeap[0].subFOM(hyp, hyp)
         nSpecified = len(hyp.subLevelHeap)
 
-        delta /= (divergence / self.beamDivergenceFactor)
-        if delta > 1:
-            delta = 1
+#         delta /= (divergence / self.beamDivergenceFactor)
+#         if delta > 1:
+#             delta = 1
         
         beam = bestOption * self.beamF(delta, nSpecified)        
         if "threshold" in self.verbose:
@@ -396,23 +442,29 @@ if __name__ == "__main__":
 
 #     tpar2 = TargetParse("[0.873076 ROOT_0 -> S_1, 0.508448 S_1 -> NP_0 @S_2, 0.0246014 NP_0 -> NP_3 @NP_0, 0.161513 NP_3 -> NNP_3 NNP_0, 0.00684764 NNP_3 -> John, 0.00333055 NNP_0 -> Smith, 0.0632427 @NP_0 -> CC_3 NP_2, 0.835953 CC_3 -> and, 0.0024399 NP_2 -> NNP_3 NNP_0, 0.000534297 NNP_3 -> Mary, 3.70439e-06 NNP_0 -> Roe, 0.79434 @S_2 -> VP_3 ._1, 0.00544183 VP_3 -> VBP_3 NP_1, 0.652744 VBP_3 -> are, 0.00117646 NP_1 -> NNS_1, 0.00152046 NNS_1 -> friends, 0.999461 ._1 -> .]", level=2)
 
-    tpar = TargetParse("[0.907997 ROOT_0 -> S_0, 0.238841 S_0 -> NP_0 @S_0, 0.0164851 NP_0 -> DT_0 NNS_0, 0.0238421 DT_0 -> The, 0.00986581 NNS_0 -> stocks, 0.371818 @S_0 -> VP_0 ._0, 0.0177314 VP_0 -> VBD_0, 0.0149101 VBD_0 -> fell, 0.999332 ._0 -> .]", options=["expansions"])
+#    tpar = TargetParse("[0.907997 ROOT_0 -> S_0, 0.238841 S_0 -> NP_0 @S_0, 0.0164851 NP_0 -> DT_0 NNS_0, 0.0238421 DT_0 -> The, 0.00986581 NNS_0 -> stocks, 0.371818 @S_0 -> VP_0 ._0, 0.0177314 VP_0 -> VBD_0, 0.0149101 VBD_0 -> fell, 0.999332 ._0 -> .]", options=["expansions"])
+
+#    tpar = TargetParse("(ROOT_0 (S_0 (NP_0 (DT_0 The) (@NP_0 (ADJP_0 (RBS_0 most) (JJ_0 troublesome)) (NN_0 report))) (@S_0 (VP_0 (MD_0 may) (VP_0 (VB_0 be) (NP_0 (NP_0 (DT_0 the) (@NP_0 (NNP_0 August) (@NP_0 (NN_0 merchandise) (@NP_0 (NN_0 trade) (NN_0 deficit))))) (ADJP_0 (JJ_0 due) (@ADJP_0 (ADVP_0 (IN_0 out)) (NP_0 (NN_0 tomorrow))))))) (._0 .))))", tree=True)
 
     parser = CTFParser(grammar, top="ROOT_0", mode="lex",
                        queueLimit=5e5,
-                       verbose=["index", "level", tpar],
+                       verbose=["index", "level"],
                        makeAnalysis=HierAnalysis,
-                       gammas=[1e-5, 1e-5],#, 1e-4, 1e-4],
-                       deltas=[1e-4,],# 1e-4, 1e-3],
+                       gammas=[1e-11, 1e-3, 1e-2, 1e-1],
+                       deltas=[1e-4, 1e-4, 1e-3],
+                       beamDivergenceFactor=10,
                        stepExpansionLimit=500)
 
-    sent = "The stocks fell ."
+#    sent = "The stocks fell ."
 #    sent = "John Smith and Mary Roe are friends ."
 
 #     import cProfile
 #     cProfile.run('parser.parse(sent.split())', 'profile-out-noiter')
 #     sys.exit(0)
 
+#['Perhaps', 'the', 'explanation', 'for', 'these', 'UNK-LC-s', 'is', 'that', 'UNK-LC-DASH', 'Britain', 'is', "n't", 'ready', 'to', 'come', 'to', 'terms', 'with', 'the', 'wealth', 'created', 'by', 'the', 'UNK-CAPS', 'UNK-LC-DASH', 'regime', '.']
+
+    sent = " ".join(['A', 'widening', 'of', 'the', 'deficit', ',', 'if', 'it', 'were', 'combined', 'with', 'a', 'stubbornly', 'strong', 'dollar', ',', 'would', 'exacerbate', 'trade', 'problems', '--', 'but', 'the', 'dollar', 'weakened', 'Friday', 'as', 'stocks', 'plummeted', '.'])
     final = parser.parse(sent.split())
     print final
     print list(final.derivation())

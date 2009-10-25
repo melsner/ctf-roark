@@ -9,16 +9,18 @@ from topdownParser import Grammar, Rule, Parser, ParseError, \
      normalizeTree, treeToStr
 from DBGrammar import DBGrammar
 from HierGrammar import HierGrammar
+from ctfParser import CTFParser
 
 from path import path
 import sys
 
 #class representing an experiment to run
 class Parse(Action):
-    def __init__(self, grammar, parseOpts, sentence):
+    def __init__(self, grammar, parseOpts, sentence, parser="standard"):
         self.grammar = path(grammar).abspath()
         self.parseOpts = parseOpts
         self.sentence = sentence.split()
+        self.parserType = parser
 
     def run(self, hogwash_job):
         print >>sys.stderr, "Loading grammar", self.grammar
@@ -32,7 +34,12 @@ class Parse(Action):
 
         self.parseOpts["grammar"] = grammar
 
-        parser = Parser(**self.parseOpts)
+        if self.parserType == "standard":
+            parser = Parser(**self.parseOpts)
+        elif self.parserType == "ctf":
+            parser = CTFParser(**self.parseOpts)
+        else:
+            raise TypeError("Don't know parser type %s" % self.parserType)
 
         print >>sys.stderr, "Parsing:", self.sentence
 
