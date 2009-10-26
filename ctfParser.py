@@ -178,11 +178,12 @@ class HierAnalysis(Analysis):
         self.fom = self.prob * self.lap
 
     def recalcProbHelper(self, foremost):
-        res = sum([x.subFOM(self, foremost) for x in self.allUnused()])
         if self.parent:
-            res += self.parent.recalcProbHelper(foremost)
-        self.prob = res +\
-                    sum([x.subFOM(self, foremost) for x in self.subLevelHeap])
+            res = sum([x.prob for x in self.allUnused()]) * self.deriv.prob
+            res += self.parent.recalcProbHelper(foremost) * self.deriv.prob
+        else:
+            res = 0
+        self.prob = res + sum([x.prob for x in self.subLevelHeap])
         return res
 
 class CTFParser(Parser):
@@ -464,7 +465,7 @@ if __name__ == "__main__":
 
 #['Perhaps', 'the', 'explanation', 'for', 'these', 'UNK-LC-s', 'is', 'that', 'UNK-LC-DASH', 'Britain', 'is', "n't", 'ready', 'to', 'come', 'to', 'terms', 'with', 'the', 'wealth', 'created', 'by', 'the', 'UNK-CAPS', 'UNK-LC-DASH', 'regime', '.']
 
-    sent = " ".join(['A', 'widening', 'of', 'the', 'deficit', ',', 'if', 'it', 'were', 'combined', 'with', 'a', 'stubbornly', 'strong', 'dollar', ',', 'would', 'exacerbate', 'trade', 'problems', '--', 'but', 'the', 'dollar', 'weakened', 'Friday', 'as', 'stocks', 'plummeted', '.'])
+    sent = " ".join(['Trouble', 'is', ',', 'she', 'has', 'lost', 'it', 'just', 'as', 'quickly', '.'])
     final = parser.parse(sent.split())
     print final
     print list(final.derivation())
