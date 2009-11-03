@@ -101,8 +101,14 @@ class HierGrammar(DBGrammar):
                 parRuleTable = self.rules
             else:
                 parRuleTable = self.intermedRules[rule.level - 1]
-            
-            matching = self.matchRule(rule, parRuleTable)
+
+            if rule.epsilon() and rule.level == 1:
+                parLHS = self.hierarchy[rule.level][rule.lhs]
+                matching = self.epsilonRules[parLHS]
+                assert(rule.descendant(matching, self.hierarchy))
+            else:
+                matching = self.matchRule(rule, parRuleTable)
+
             if not matching:
                 print >>sys.stderr, "Can't find matching rule for", rule
             matching.children.append(rule)
@@ -194,9 +200,10 @@ class HierGrammar(DBGrammar):
                     self.posToWord[pos][word] += rule.prob
 
         self.lookaheadCache = DefaultDict({})
-        for word in sent:
+        #add None to load probs for epsilon productions
+        for word in sent + [None,]:
             level = 0
-            for nt in self.rules.keys():
+            for nt in self.rules.keys() + self.epsilonRules.keys():
                 lap = self.lookaheadProbFull(nt, word, level)
 #                 print >>sys.stderr, "at level", level,\
 #                       nt, "->", word, "=", lap
@@ -209,4 +216,3 @@ class HierGrammar(DBGrammar):
 #                     print >>sys.stderr, "at level", level,\
 #                           nt, "->", word, "=", lap
                     self.lookaheadCache[(level, nt)][word] = lap
-

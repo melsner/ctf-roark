@@ -4,8 +4,10 @@ from AIMA import DefaultDict
 import sys
 from copy import deepcopy, copy
 from math import log, exp
+from itertools import chain
 
 from Probably import assert_valid_prob
+from treeUtils import treeToStr, normalizeTree
 
 if True: #use psyco
     try:
@@ -72,6 +74,10 @@ class Grammar(psyobj):
         if wordRule:
             wordRule.terminal = True
             res.append(wordRule)
+        if sym in self.epsilonRules:
+            epsilonRule = self.epsilonRules[sym]
+            epsilonRule.terminal = False
+            res.append(epsilonRule)
         return res        
 
 #     def deriving(self, sym, word):
@@ -101,6 +107,15 @@ class Grammar(psyobj):
 
     def lookaheadProbFull(self, nt, word, lamb=None):
         #eqn 3.30 from Roark
+        if word is None:
+            #XXX hardcoded name of epsilon nonterm
+            try:
+                res = self.ntToPos[nt]["EPSILON"]
+                #print >>sys.stderr, nt, "to epsilon", res
+                return res
+            except KeyError:
+                return 0
+
         if lamb == None and not self.lambdas:
             return 1.0
 
@@ -266,39 +281,6 @@ class Analysis(psyobj):
                     self.treeHelper(deriv, annotateProbs, allowPartial),
                     self.treeHelper(deriv, annotateProbs, allowPartial))
 
-def treeToStr(tree):
-    if type(tree) != tuple:
-        return str(tree)
-    return "(%s %s)" % (tree[0], " ".join([treeToStr(x) for x in tree[1:]]))
-
-def normalizeTree(tree, stripSub=True):
-    return normalizeTreeHelper(tree, stripSub)[0]
-
-def normalizeTreeHelper(tree, stripSub):
-    if type(tree) != tuple:
-        return [tree,]
-    if tree[1] is None:
-        return []
-
-    label = tree[0]
-    if stripSub:
-        label = label.split("_")[0]
-    if label.startswith("@"):
-        res = []
-        for sub in tree[1:]:
-            ntree = normalizeTreeHelper(sub, stripSub)
-            for constit in ntree:
-                res.append(constit)
-    else:
-        res = [label,]
-        for sub in tree[1:]:
-            ntree = normalizeTreeHelper(sub, stripSub)
-            for constit in ntree:
-                res.append(constit)
-        res = [tuple(res)]
-
-    return res
-
 def identityBeamF(gamma, nOptions):
     return gamma * nOptions
 def cubicBeamF(gamma, nOptions):
@@ -396,6 +378,12 @@ class Parser(psyobj):
 
         expandNext = hyps[i][0]
 
+        if expandNext.fom == 0:
+            if "threshold" in self.verbose:
+                print >>sys.stderr, "--reject (worthless hypothesis)"
+
+            return False
+
         if not hyps[i + 1]:
 
             if "threshold" in self.verbose:
@@ -482,27 +470,49 @@ class Parser(psyobj):
     def lookahead(self, analysis, nextWord):
         #3.29 from Roark
         #currently doesn't believe in epsilon
-        if analysis.stackTop() == None:
-            if nextWord is None:
-                return 1.0
-            else:
-                return 0.0
-        stackTop = analysis.stackTop()
+        derivesEpsilon = 1
+        res = 0
+        for stackItem in chain(analysis.stack(), [None,]):
+            if stackItem is None:
+                if nextWord is None:
+                    res += derivesEpsilon
+                else:
+                    res += 0.0
+                #there cannot be any more terms since the stack is empty
+                break
 
-        if stackTop == nextWord:
-            return 1.0
+            if stackItem == nextWord:
+                res += derivesEpsilon
 
-        #if we can do it in one step, just do it!
-        wordRule = self.grammar.terminalRules[stackTop].get(nextWord)
-        if wordRule:
-            return wordRule.prob
+            #if we can do it in one step, just do it!
+            wordRule = self.grammar.terminalRules[stackItem].get(nextWord)
+            if wordRule:
+                res += derivesEpsilon * wordRule.prob
+                #there cannot be any more terms since the terminal
+                #rule cannot derive epsilon
+                break
 
-        res = self.grammar.lookaheadProb(stackTop, nextWord,
-                                         analysis.level())
+            lap = self.grammar.lookaheadProb(stackItem, nextWord,
+                                             analysis.level())
 
-        if "lookahead" in self.verbose:
-            print >>sys.stderr, "Lookahead: ", stackTop, nextWord,\
-                  analysis.level(), "=", res
+            if "lookahead" in self.verbose:
+                print >>sys.stderr, "Lookahead: ", stackItem, nextWord,\
+                      analysis.level(), "=", lap
+
+            res += derivesEpsilon * lap
+
+            vanishes = self.grammar.lookaheadProb(stackItem, None,
+                                                  analysis.level())
+
+            if "lookahead" in self.verbose:
+                print >>sys.stderr, "Lookahead: ", stackItem,\
+                      "=> EPSILON p=", vanishes
+
+            derivesEpsilon *= vanishes
+
+            if derivesEpsilon < 1e-30:
+                #XXX hardcoded cutoff
+                break
 
         return res
 

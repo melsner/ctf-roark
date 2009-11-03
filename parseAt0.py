@@ -21,7 +21,7 @@ if __name__ == "__main__":
     debug = ["index", "pop", "push", "threshold"]
     parser = Parser(grammar, top="ROOT_0", mode="lex",
                     queueLimit=5e5,
-                    verbose=["index"])
+                    verbose=["index", "pop", "push", "lookahead"])
 
 #    sent = "The stocks fell ."
     sent = "The government 's plan is stupid ."

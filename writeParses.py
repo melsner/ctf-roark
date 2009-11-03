@@ -13,11 +13,17 @@ from iterextras import batch
 from StringIO import StringIO #store output of process
 
 from distributedParser import Parse
+from topdownParser import Parser, Grammar, treeToStr, normalizeTree
 
 if __name__ == "__main__":
-    session = Session(sys.argv[1], read_only=True)
+    session = Session(sys.argv[1], read_only=True, verbose=0)
 
-    for job in session:
+    p = Parser(Grammar({}))
+
+    for job in session[:100]:
         if job.status != "finished":
-            break
-        print job.results
+            sent = job.args[0].sentence
+            fail = p.parseFail(sent)
+            print treeToStr(normalizeTree(fail.tree()))
+        else:
+            print job.results

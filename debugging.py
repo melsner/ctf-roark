@@ -3,59 +3,8 @@ import sys
 
 from StringIO import StringIO
 from itertools import izip
-
+from treeUtils import treeToDeriv, treeToTuple
 from rule import Rule
-
-def treeToDeriv(tree):
-    if type(tree[1]) is not tuple:
-        r = Rule()
-        r.setup(tree[0], [tree[1],], 1.0)
-        return [r,]
-    else:
-        r = Rule()
-        rhs = [x[0] for x in tree[1:]]
-        assert(len(rhs) <= 2), "Non-binary rule: %s" % str(rhs)
-        r.setup(tree[0], rhs, 1.0)
-        res = [r,]
-        for subt in tree[1:]:
-            res += treeToDeriv(subt)
-        return res
-
-def treeToTuple(tree):
-    assert(tree[0] == "(")
-    return treeToTupleHelper(tree, 1)[0]
-
-def treeToTupleHelper(tbuf, ind):
-    label = ""
-    word = ""
-    inLabel = True
-    subs = []
-
-    while ind < len(tbuf):
-        char = tbuf[ind]
-        #print char
-        ind += 1
-
-        if char == "(":
-            #print "push", ind
-            (sub, newInd) = treeToTupleHelper(tbuf, ind)
-            subs.append(sub)
-            #print "pop", newInd, subs
-            ind = newInd
-        elif char == ")":
-            if word:
-                return ((label, word), ind)
-            else:
-                assert(subs)
-                return (tuple([label,]+subs), ind)
-        elif char == " ":
-            inLabel = False
-        else:
-            if inLabel:
-                label += char
-            else:
-                word += char
-    assert(False), "Malformed tree, read %s" % char
 
 class TargetParse:
     def __init__(self, tderiv, tree=False, level=0, options=[]):
@@ -104,7 +53,10 @@ class DebugAnalysis:
         print >>sys.stderr, self.ana.expansionProfile(self.ana)
         res = self.nextStepToSpecify(foremost)
         (step, fom) = res
-        print >>sys.stderr, "result:", list(step.derivation()), fom
+        if step is None:
+            print >>sys.stderr, "no more"
+        else:
+            print >>sys.stderr, "result:", list(step.derivation()), fom
         return res
 
     def extendHook(self, rule, sentence, word, nextWord, doFOM=True):

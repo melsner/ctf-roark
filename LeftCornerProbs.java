@@ -349,11 +349,19 @@ public class LeftCornerProbs
 				lambdas.put(key, newL);
 				//System.err.println("Setting lambda: "+key+" "+newL);
 
-				if(newL < 0 || newL > 1)
+				if(newL < -1e-5 || newL > 1 + 1e-5)
 				{
 					System.err.println(wordIsCorrect.getCount(key)+" / "+
 									   norm.getCount(key) + " "+newL);
 					throw new RuntimeException("!!!");
+				}
+				else if(newL < 0)
+				{
+					newL = 1e-5;
+				}
+				else if(newL > 1)
+				{
+					newL = 1 - 1e-5;
 				}
 			}
 			

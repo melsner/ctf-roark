@@ -18,7 +18,16 @@ class DBGrammar(Grammar):
 
         if mode == "r":
             assert((self.dirname/"grammar").exists())
-            self.rules = pickle.load(file(self.dirname/"grammar", 'rb'))
+            gfile = file(self.dirname/"grammar", 'rb')
+            self.rules = pickle.load(gfile)
+
+            g2file = path(self.dirname/"epsilons")
+            if g2file.exists():
+                g2fh = file(g2file, 'rb')
+                self.epsilonRules = pickle.load(g2fh)
+            else:
+                print >>sys.stderr, "WARNING: grammar has no epsilon rules"
+                self.epsilonRules = {}
 
             assert((self.dirname/"lookahead").exists())
             lookFile = file(self.dirname/"lookahead", 'rb')
@@ -43,6 +52,7 @@ class DBGrammar(Grammar):
                 self.dirname.mkdir()
             
             self.rules = DefaultDict([])
+            self.epsilonRules = {}
             self.lambdas = {}
             self.ntToPos = DefaultDict({})
 
@@ -77,6 +87,11 @@ class DBGrammar(Grammar):
             px.dump(self.rules)
             self.rules = None
 
+            epsilonsOut = file(self.dirname/"epsilons", 'wb')
+            px = pickle.Pickler(epsilonsOut, protocol=2)
+            px.dump(self.epsilonRules)
+            self.epsilonRules = None
+
         elif target == "lookahead":
             lookOut = file(self.dirname/"lookahead", 'wb')
             px = pickle.Pickler(lookOut, protocol=2)
@@ -102,7 +117,11 @@ class DBGrammar(Grammar):
             assert(0), "Bad write mode!"
 
     def addRule(self, rule):
-        self.rules[rule.lhs].append(rule)
+        if rule.epsilon():
+            assert(rule.lhs not in self.epsilonRules)
+            self.epsilonRules[rule.lhs] = rule
+        else:
+            self.rules[rule.lhs].append(rule)
 
     def addTerminalRule(self, rule):
         assert(rule.unary())
