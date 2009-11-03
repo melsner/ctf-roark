@@ -114,21 +114,18 @@ if __name__ == "__main__":
         print >>sys.stderr, "Unaries from", unaryFile
 
         ct = 0
-        for line in GZipFile(unaryFile):
+        for line in GzipFile(unaryFile):
             if ct % 1000 == 0:
                 print >>sys.stderr, ct, "..."
             ct += 1
 
+            if not line.strip():
+                continue
+
             #copied, factor
             fields = line.strip().split()
-            (lhs, arrow, rhs1) = fields[0:3]
+            (prob, lhs, arrow, rhs1) = fields
             assert(arrow == "->")
-            if len(fields) == 5:
-                rhs = [rhs1, fields[3]]
-                prob = fields[4]
-            elif len(fields) == 4:
-                rhs = [rhs1,]
-                prob = fields[3]
 
             prob = float(prob)
 
@@ -141,7 +138,7 @@ if __name__ == "__main__":
 
             rule.setup(lhs, rhs, prob)
 
-            if not rule.epsilon() or rule.unary():
+            if not (rule.epsilon() or rule.unary()):
                 print >>sys.stderr, "WARNING: non-unary", rule
                 assert(0)
             else:
