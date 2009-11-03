@@ -144,7 +144,7 @@ public class LeftCornerProbs
 		{
 			System.err.println("Fail: "+stateSetTree);
 			System.err.println(e);
-			throw new RuntimeException(e);
+			//throw new RuntimeException(e);
 		}
 
 //		System.err.println(stateSetTree);
