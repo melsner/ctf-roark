@@ -151,7 +151,7 @@ class HierAnalysis(Analysis):
         stackTop = toExpand.stackTop()
 
         if "subhyp" in verbose:
-            print >>sys.stderr, "\texpanding", toExpand
+            print >>sys.stderr, "\texpanding", toExpand#, nextRule
 
         #parser.verbose.append("lookahead")
 
@@ -164,12 +164,17 @@ class HierAnalysis(Analysis):
                 continue
 
             #not standard debug, comment out
-#             if "subhyp" in verbose:
-#                 print >>sys.stderr, "\t", rule
+            if "subhyp" in verbose:
+                print >>sys.stderr, "\t", rule
 
+            if toExpand.word >= len(sentence):
+                #if we are done with the sentence, also fake this
+                currWord = None
+            else:
+                currWord = sentence[toExpand.word]
             #pass fakes to extend since we don't need a LAP
             newAna = toExpand.extend(rule,
-                                     sentence[toExpand.word],
+                                     currWord,
                                      None, #fake word
                                      None, #fake parser
                                      doFOM=False)
@@ -394,29 +399,42 @@ class CTFParser(Parser):
         return expandNext <= beam
 
     def greedyToRightEdge(self, hyp, sentence):
+        #start at the best point to expand
         (step, fom) = hyp.nextStepToSpecify(hyp)
         if step is None:
+            #print >>sys.stderr, "greed finds nothing to do"
             return
+
         #print >>sys.stderr, "stepping", step.allUnused()
         #print >>sys.stderr, "hyp exp", hyp.expansionProfile(hyp)
+
+        #keep going till we are at the step before the edge
         while step != hyp:
+            #take a step
             step.specifyNext(sentence, hyp, verbose=self.verbose)
-            #print >>sys.stderr, "after spnext"
 
-            #print >>sys.stderr, "hyp exp", hyp.expansionProfile(hyp)
-
+            #move forward to the child
             prevStep = step
             step = hyp
+
+            #use stupid linear search to find the child
             while step.parent is not prevStep:
                 step = step.parent
             #print >>sys.stderr, "stepped", step.allUnused()
+
             if not step.allUnused():
                 #rules simply don't support this search path
+                #print >>sys.stderr, "greed leads to nothing"
                 return
+
+        #and once more to get to the edge
+        step.specifyNext(sentence, hyp, verbose=self.verbose)
 
     def specifyHyp(self, hyp, delta, bestOption, nOptions,
                    sentence, divergence):
         self.greedyToRightEdge(hyp, sentence)
+
+        reachedRightEdge = bool(hyp.subLevelHeap)
 
         created = 0
         iters = 0
@@ -429,6 +447,14 @@ class CTFParser(Parser):
                                                bestOption, nOptions + created,
                                                divergence)
             iters += 1
+
+            reachedRightEdge = reachedRightEdge or bool(hyp.subLevelHeap)
+            #XXX hardcoded cutoff
+            if not reachedRightEdge and iters > 20:
+                if "threshold" in self.verbose:
+                    print >>sys.stderr, "==fail (no visible progress)"
+
+                break
 
             if iters > self.stepExpansionLimit:
                 if "threshold" in self.verbose:
@@ -496,7 +522,7 @@ if __name__ == "__main__":
 
     parser = CTFParser(grammar, top="ROOT_0", mode="lex",
                        queueLimit=5e5,
-                       verbose=["index", "level", tpar],
+                       verbose=["index", "level"],
                        makeAnalysis=HierAnalysis,
                        gammas=[1e-11, 1e-8, 1e-6, 1e-4],
                        deltas=[1e-4, 1e-4, 1e-3],
@@ -505,7 +531,7 @@ if __name__ == "__main__":
                        stepExpansionLimit=500)
 
 #    sent = "The stocks fell ."
-#    sent = "John Smith and Mary Roe are friends ."
+    sent = "John Smith and Mary Roe are friends ."
 
 #     import cProfile
 #     cProfile.run('parser.parse(sent.split())', 'profile-out-noiter')
@@ -518,7 +544,7 @@ if __name__ == "__main__":
 
 #    sent = " ".join(['Trouble', 'is', ',', 'she', 'has', 'lost', 'it', 'just', 'as', 'quickly', '.'])
 #    sent = "can can and , if"
-    sent = " ".join(['Instead', 'of', 'closing', 'ranks', 'to', 'protect', 'the', 'firm', "'s", 'reputation', ',', 'the', 'executive', "'s", 'internal', 'rivals', ',', 'led', 'by', 'a', 'UNK-LC', 'American', ',', 'demand', 'his', 'resignation', '.'])
+#    sent = " ".join(['Instead', 'of', 'closing', 'ranks', 'to', 'protect', 'the', 'firm', "'s", 'reputation', ',', 'the', 'executive', "'s", 'internal', 'rivals', ',', 'led', 'by', 'a', 'UNK-LC', 'American', ',', 'demand', 'his', 'resignation', '.'])
     final = parser.parse(sent.split())
     print final
     print list(final.derivation())

@@ -139,6 +139,19 @@ public class LeftCornerProbs
 		try
 		{
 			labeler.doInsideOutsideScores(stateSetTree, false, false);
+
+			//obviously, only do this if we actually parse!
+			double sentenceScore = stateSetTree.getLabel().getIScore(0);
+			int sentenceScale = stateSetTree.getLabel().getIScale();
+
+			if(sentenceScore > 0)
+			{
+				addTreeCounts(stateSetTree, sentenceScore, sentenceScale);
+			}
+			else
+			{
+				System.err.println("Parse fail: "+stateSetTree);
+			}
 		}
 		catch(Exception e)
 		{
@@ -148,11 +161,6 @@ public class LeftCornerProbs
 		}
 
 //		System.err.println(stateSetTree);
-
-		double sentenceScore = stateSetTree.getLabel().getIScore(0);
-		int sentenceScale = stateSetTree.getLabel().getIScale();
-
-		addTreeCounts(stateSetTree, sentenceScore, sentenceScale);
 	}
 
 	private void addTreeCounts(Tree<StateSet> tree, double sentenceScore, 
@@ -194,7 +202,7 @@ public class LeftCornerProbs
 												 currentState.getIScale() - 
 												 sentenceScale);
 
-				double weight = score * scalingFactor;
+				double weight = (score * scalingFactor) / sentenceScore;
 
 				norm += weight;
 
@@ -226,7 +234,7 @@ public class LeftCornerProbs
 			//POS tags are fully observed...
 			posToWord.incrementCount(label, word, 1.0);
 
-			if(Math.abs(sentenceScore - norm) > 1e-5)
+			if(Math.abs(1.0 - norm) > 1e-5)
 			{
 				throw new RuntimeException(
 					"Probabilities not properly normalized.");
@@ -268,7 +276,7 @@ public class LeftCornerProbs
 												 currentState.getIScale() - 
 												 sentenceScale);
 
-				double weight = score * scalingFactor;
+				double weight = (score * scalingFactor) / sentenceScore;
 
 				norm += weight;
 
@@ -298,7 +306,7 @@ public class LeftCornerProbs
 				wordSubmap.incrementCount(substate, leftWord, weight);
 			}
 
-			if(Math.abs(sentenceScore - norm) > 1e-5)
+			if(Math.abs(1.0 - norm) > 1e-5)
 			{
 				throw new RuntimeException(
 					"Probabilities not properly normalized.");
@@ -455,9 +463,13 @@ public class LeftCornerProbs
 						throw new RuntimeException("Badness!");
 					}
 
-					if(probGivenWord > total)
+					if((probGivenWord - total) > 1e-5)
 					{
 						throw new RuntimeException("Fsck!");
+					}
+					else if(probGivenWord > total)
+					{
+						probGivenWord = total;
 					}
 // 					System.err.println("nonterm "+nonterm+"-"+subtag+
 // 									   " left word/pos "+

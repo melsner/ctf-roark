@@ -106,7 +106,14 @@ public class AccurateUnaries
 		double sentenceScore = stateSetTree.getLabel().getIScore(0);
 		int sentenceScale = stateSetTree.getLabel().getIScale();
 
-		addTreeCounts(stateSetTree, sentenceScore, sentenceScale);
+		if(sentenceScore > 0)
+		{
+			addTreeCounts(stateSetTree, sentenceScore, sentenceScale);
+		}
+		else
+		{
+			System.err.println("Parse fail: "+stateSetTree);
+		}
 	}
 
 	private void addTreeCounts(Tree<StateSet> tree, double sentenceScore, 
@@ -148,7 +155,7 @@ public class AccurateUnaries
 													 currentState.getIScale() - 
 													 sentenceScale);
 
-					double weight = score * scalingFactor;
+					double weight = (score * scalingFactor) / sentenceScore;
 
 					norm += weight;
 
@@ -173,9 +180,12 @@ public class AccurateUnaries
 								childState.getIScale() - 
 								sentenceScale);
 
-						double childWeight = childScore * childScalingFactor;
+						double childWeight = 
+							(childScore * childScalingFactor) /
+							sentenceScore;
 
 						Double totalWeight = new Double(weight * childWeight);
+
 						unaryTable.incrementCount(lhs, rhs, totalWeight);
 						if(totalWeight.isNaN())
 						{
@@ -184,7 +194,7 @@ public class AccurateUnaries
 					}
 				}
 
-				if(Math.abs(sentenceScore - norm) > 1e-5)
+				if(Math.abs(1.0 - norm) > 1e-5)
 				{
 					throw new RuntimeException(
 						"Probabilities not properly normalized.");

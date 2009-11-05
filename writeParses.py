@@ -21,9 +21,12 @@ if __name__ == "__main__":
     p = Parser(Grammar({}))
 
     for job in session[:100]:
+        if job.jobnum != 44:
+            continue
+
         if job.status != "finished":
             sent = job.args[0].sentence
             fail = p.parseFail(sent)
-            print treeToStr(normalizeTree(fail.tree()))
+            print treeToStr(fail.tree())
         else:
-            print job.results
+            print treeToStr(job.results, epsilonSym="EPSILON")

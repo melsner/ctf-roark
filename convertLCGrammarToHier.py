@@ -105,7 +105,8 @@ if __name__ == "__main__":
             rule.setup(lhs, rhs, prob)
 
             if rule.epsilon() or rule.unary():
-                print >>sys.stderr, "Skipping bogus unary", rule
+#                print >>sys.stderr, "Skipping bogus unary", rule
+                pass
             else:
                 grammar.addRule(rule)
 
@@ -127,18 +128,21 @@ if __name__ == "__main__":
             (prob, lhs, arrow, rhs1) = fields
             assert(arrow == "->")
 
+            rhs = [rhs1,]
+
             prob = float(prob)
 
             rule = HierRule(level)
 
-            if lhs.startswith("EPSILON"):
-                assert(len(rhs) == 1)
-                assert(rhs[0].startswith("EPSILON"))
-                rhs = []
+            #there will be no rules directly inserting the terminal
+            #epsilon in this file, because no terminal rules are in
+            #this file...
 
             rule.setup(lhs, rhs, prob)
 
-            if not (rule.epsilon() or rule.unary()):
+            if [rule.lhs,] == rule.rhs:
+                print >>sys.stderr, "Warning: X->X", rule.lhs, rule.rhs
+            elif not rule.unary():
                 print >>sys.stderr, "WARNING: non-unary", rule
                 assert(0)
             else:
@@ -163,17 +167,25 @@ if __name__ == "__main__":
             (pos, word) = fields[0:2]
             lst = listEval(" ".join(fields[2:]))
 
+            if word == "EPSILON":
+                rhs = []
+            else:
+                rhs = [word,]
+
             for num,prob in enumerate(lst):
                 preterm = "%s_%d" % (pos, num)
                 rule = HierRule(level)
-                rule.setup(preterm, [word,], float(prob))
+                rule.setup(preterm, rhs, float(prob))
 
-                if [rule.lhs,] == rule.rhs and rule.prob == 1.0:
+                if [rule.lhs,] == rule.rhs:
                     print >>sys.stderr, "Warning: X->X", rule.lhs, rule.rhs
+                elif rule.epsilon():
+                    grammar.addEpsilonRule(rule)
                 else:
                     grammar.addTerminalRule(rule)
 
     grammar.writeback("terminals")
+    grammar.writeback("epsilons")
 
     for level in range(maxLevel+1):
         print >>sys.stderr, "Level", level

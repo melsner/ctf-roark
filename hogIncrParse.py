@@ -20,7 +20,7 @@ if __name__ == "__main__":
     print "making", sessionName, \
           "to parse", fileToParse, "with grammar", grammar
 
-    if 1:
+    if 0:
         #vanilla
         parseOpts = {
             "top":"ROOT_0",
@@ -75,7 +75,7 @@ if __name__ == "__main__":
             "stepExpansionLimit":500
             }
         ptype = "ctf"
-    if 0:
+    if 1:
         parseOpts = {
             "top":"ROOT_0",
             "mode":"lex",

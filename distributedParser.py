@@ -45,14 +45,13 @@ class Parse(Action):
 
         try:
             final = parser.parse(self.sentence)
-            res = treeToStr(normalizeTree(final.tree()))
         except (ParseError, TypeError):
             #if psyco is active, throwing a parse error will fail
             #because psyco doesn't realize that exceptions can be
             #newstyle classes, because it's *old*
             #so we get a type error
             final = parser.parseFail(self.sentence)
-            res = treeToStr(normalizeTree(final.tree()))
-        print res
 
-        return res
+        print treeToStr(normalizeTree(final.tree()))
+
+        return final.tree()

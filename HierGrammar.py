@@ -60,10 +60,13 @@ class HierGrammar(DBGrammar):
         DBGrammar.writeback(self, target)
 
         if target == "grammar":
-            self.intermedRules = None
+            self.intermedRules = DefaultDict(DefaultDict([]))
 
         elif target == "terminals":
-            self.intermedTerminalRules = None
+            self.intermedTerminalRules = DefaultDict(DefaultDict([]))
+
+        elif target == "epsilons":
+            self.intermedRules = DefaultDict(DefaultDict([]))            
 
     def matchRule(self, rule, rules):
         parLHS = self.hierarchy[rule.level][rule.lhs]
@@ -93,6 +96,8 @@ class HierGrammar(DBGrammar):
         return None
 
     def addRule(self, rule):
+        assert(not rule.epsilon())
+
         if rule.level == 0:
             DBGrammar.addRule(self, rule)
         else:
@@ -102,20 +107,18 @@ class HierGrammar(DBGrammar):
             else:
                 parRuleTable = self.intermedRules[rule.level - 1]
 
-            if rule.epsilon() and rule.level == 1:
-                parLHS = self.hierarchy[rule.level][rule.lhs]
-                matching = self.epsilonRules[parLHS]
-                assert(rule.descendant(matching, self.hierarchy))
-            else:
-                matching = self.matchRule(rule, parRuleTable)
-
+            matching = self.matchRule(rule, parRuleTable)
             if not matching:
-                print >>sys.stderr, "Can't find matching rule for", rule
-            matching.children.append(rule)
+                print >>sys.stderr, "WARNING: Can't find matching rule for",\
+                      rule
+            else:
+                matching.children.append(rule)
 
             self.intermedRules[rule.level][rule.lhs].append(rule)
 
     def addTerminalRule(self, rule):
+        assert(rule.unary())
+
         if rule.level == 0:
             DBGrammar.addTerminalRule(self, rule)
         else:
@@ -124,14 +127,38 @@ class HierGrammar(DBGrammar):
                 parRuleTable = self.terminalRules
             else:
                 parRuleTable = self.intermedTerminalRules[rule.level - 1]
-            
+
             matching = self.matchTermRule(rule, parRuleTable)
             if not matching:
-                print >>sys.stderr, "Can't find matching rule for", rule
+                print >>sys.stderr, "WARNING: Can't find matching rule for",\
+                      rule
             matching.children.append(rule)
 
             word = rule.rhs[0]
             self.intermedTerminalRules[rule.level][word].append(rule)
+
+    def addEpsilonRule(self, rule):
+        assert(rule.epsilon())
+
+        if rule.level == 0:
+            DBGrammar.addRule(self, rule)
+        else:
+            if rule.level == 1:
+                parLHS = self.hierarchy[rule.level][rule.lhs]
+                matching = self.epsilonRules[parLHS]
+                if matching:
+                    assert(rule.descendant(matching, self.hierarchy))
+            else:
+                parRuleTable = self.intermedRules[rule.level - 1]
+                matching = self.matchRule(rule, parRuleTable) 
+
+            if not matching:
+                print >>sys.stderr, "WARNING: Can't find matching rule for",\
+                      rule
+            else:
+                matching.children.append(rule)
+
+            self.intermedRules[rule.level][rule.lhs].append(rule)
 
     def addWordLookahead(self, nt, word, prob, level):
         DBGrammar.addWordLookahead(self, (level, nt), word, prob)
@@ -198,6 +225,8 @@ class HierGrammar(DBGrammar):
                     if word not in self.posToWord[pos]:
                         self.posToWord[pos][word] = 0
                     self.posToWord[pos][word] += rule.prob
+
+#         print >>sys.stderr, self.epsilonRules
 
         self.lookaheadCache = DefaultDict({})
         #add None to load probs for epsilon productions

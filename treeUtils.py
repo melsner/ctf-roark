@@ -1,9 +1,12 @@
 from rule import Rule
 
-def treeToStr(tree):
+def treeToStr(tree, epsilonSym=None):
     if type(tree) != tuple:
+        if tree is None and epsilonSym is not None:
+            return epsilonSym
         return str(tree)
-    return "(%s %s)" % (tree[0], " ".join([treeToStr(x) for x in tree[1:]]))
+    return "(%s %s)" % (tree[0], " ".join([treeToStr(x, epsilonSym)
+                                           for x in tree[1:]]))
 
 def normalizeTree(tree, stripSub=True):
     return normalizeTreeHelper(tree, stripSub)[0]
@@ -48,11 +51,11 @@ def treeToDeriv(tree):
             res += treeToDeriv(subt)
         return res
 
-def treeToTuple(tree):
+def treeToTuple(tree, epsilonSym=None):
     assert(tree[0] == "(")
-    return treeToTupleHelper(tree, 1)[0]
+    return treeToTupleHelper(tree, 1, epsilonSym=epsilonSym)[0]
 
-def treeToTupleHelper(tbuf, ind):
+def treeToTupleHelper(tbuf, ind, epsilonSym=None):
     label = ""
     word = ""
     inLabel = True
@@ -65,7 +68,7 @@ def treeToTupleHelper(tbuf, ind):
 
         if char == "(":
             #print "push", ind
-            (sub, newInd) = treeToTupleHelper(tbuf, ind)
+            (sub, newInd) = treeToTupleHelper(tbuf, ind, epsilonSym)
             subs.append(sub)
             #print "pop", newInd, subs
             ind = newInd
@@ -76,7 +79,10 @@ def treeToTupleHelper(tbuf, ind):
                 return (tuple([label,]+subs), ind)
             else:
                 #epsilon
-                return ((label,), ind)
+                if epsilonSym:
+                    return ((label, epsilonSym), ind)
+                else:
+                    return ((label,), ind)
         elif char == " ":
             inLabel = False
         else:

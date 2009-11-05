@@ -87,6 +87,7 @@ class DBGrammar(Grammar):
             px.dump(self.rules)
             self.rules = None
 
+        elif target == "epsilons":
             epsilonsOut = file(self.dirname/"epsilons", 'wb')
             px = pickle.Pickler(epsilonsOut, protocol=2)
             px.dump(self.epsilonRules)
