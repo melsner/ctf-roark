@@ -22,6 +22,14 @@ class TargetParse:
                 rule = Rule(ruleStr)
                 self.derivation.append(rule)
 
+        for rule in self.derivation:
+            if rule.rhs[0] == "EPSILON":
+                rule.rhs = []
+
+#         print >>sys.stderr, "Debug: tracking derivation:"
+#         for rule in self.derivation:
+#             print >>sys.stderr, rule
+
     def matches(self, ana):
         if ana.level() != self.level:
             return False
@@ -48,6 +56,8 @@ class DebugAnalysis:
             self.ana.nextStepToSpecify = self.specifyHook
         self.ana.debugged = True
 
+        self.quiet = ("quiet" in debugTarget.options)
+
     def specifyHook(self, foremost):
         print >>sys.stderr, "specifying", self.ana
         print >>sys.stderr, self.ana.expansionProfile(self.ana)
@@ -60,13 +70,19 @@ class DebugAnalysis:
         return res
 
     def extendHook(self, rule, sentence, word, nextWord, doFOM=True):
-        print >>sys.stderr, "extending", self.ana, "by", rule
+        if not self.quiet:
+            print >>sys.stderr, "extending", self.ana, "by", rule
         res = self.extend(rule, sentence, word, nextWord, doFOM=doFOM)
 
         if self.debugTarget.matches(res):
+            if self.quiet:
+                print >>sys.stderr, "created", res
+            else:
+                print >>sys.stderr, "CREATED TARGET"
             dbgChild = DebugAnalysis(res, self.debugTarget)
 
-        print >>sys.stderr, "result was", res
+        if not self.quiet:
+            print >>sys.stderr, "result was", res
         return res
 
 def findFilters(lst):

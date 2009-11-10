@@ -8,28 +8,29 @@ def treeToStr(tree, epsilonSym=None):
     return "(%s %s)" % (tree[0], " ".join([treeToStr(x, epsilonSym)
                                            for x in tree[1:]]))
 
-def normalizeTree(tree, stripSub=True):
-    return normalizeTreeHelper(tree, stripSub)[0]
+def normalizeTree(tree, stripSub=True, unbinarize=True):
+    return normalizeTreeHelper(tree, stripSub, unbinarize)[0]
 
-def normalizeTreeHelper(tree, stripSub):
+def normalizeTreeHelper(tree, stripSub, unbinarize):
     if type(tree) != tuple:
         return [tree,]
-    if tree[1] is None:
+    if tree[1] is None and unbinarize:
+        #should unbinarize control de-epsilon as well?
         return []
 
     label = tree[0]
     if stripSub:
         label = label.split("_")[0]
-    if label.startswith("@"):
+    if label.startswith("@") and unbinarize:
         res = []
         for sub in tree[1:]:
-            ntree = normalizeTreeHelper(sub, stripSub)
+            ntree = normalizeTreeHelper(sub, stripSub, unbinarize)
             for constit in ntree:
                 res.append(constit)
     else:
         res = [label,]
         for sub in tree[1:]:
-            ntree = normalizeTreeHelper(sub, stripSub)
+            ntree = normalizeTreeHelper(sub, stripSub, unbinarize)
             for constit in ntree:
                 res.append(constit)
         res = [tuple(res)]
