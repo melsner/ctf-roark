@@ -33,10 +33,11 @@ if __name__ == "__main__":
         parseOpts = {
             "top":"ROOT_0",
             "mode":"lex",
+            "queueLimit":5e5,
             "verbose":["index","level"],
-            "gammas":[1e-11, 1e-5, 1e-4, 1e-4],
-            "deltas":[1e-4, 1e-4, 1e-3],
-            "stepExpansionLimit":50
+            "gammas":[1e-6, 1e-4, 1e-3, 1e-2],
+            "deltas":[1e-3, 1e-2, 1e-1],
+            "stepExpansionLimit":100
             }
         ptype = "ctf"
     if 0:
@@ -75,16 +76,49 @@ if __name__ == "__main__":
             "stepExpansionLimit":500
             }
         ptype = "ctf"
-    if 1:
+    if 0:
         parseOpts = {
             "top":"ROOT_0",
             "mode":"lex",
             "queueLimit":5e5,
             "verbose":["index", "level"],
             "gammas":[1e-11, 1e-8, 1e-6, 1e-4],
-            "deltas":[1e-4, 1e-4, 1e-3],
+            "deltas":[1e-5, 1e-4, 1e-3],
             "beamDivergenceFactor":10,
             "stepExpansionLimit":500
+            }
+        ptype = "ctf"
+    if 0:
+        parseOpts = {
+            "top":"ROOT_0",
+            "mode":"lex",
+            "queueLimit":10000,
+            "verbose":["index","level"],
+            "gammas":[1e-6, 1e-4, 1e-3, 1e-2],
+            "deltas":[1e-3, 1e-2, 1e-1],
+            "stepExpansionLimit":100
+            }
+        ptype = "ctf"
+    if 1:
+        parseOpts = {
+            "top":"ROOT_0",
+            "mode":"lex",
+            "queueLimit":10000,
+            "verbose":["index","level"],
+            "gammas":[1e-11, 1e-8, 1e-6, 1e-4],
+            "deltas":[1e-5, 1e-4, 1e-3],
+            "stepExpansionLimit":100
+            }
+        ptype = "ctf"
+    if 0:
+        parseOpts = {
+            "top":"ROOT_0",
+            "mode":"lex",
+            "queueLimit":5e4,
+            "verbose":["index","level"],
+            "gammas":[1e-11, 1e-11, 1e-11, 1e-11],
+            "deltas":[1e-5, 1e-4, 1e-3],
+            "stepExpansionLimit":100
             }
         ptype = "ctf"
 
