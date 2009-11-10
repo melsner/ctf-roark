@@ -298,6 +298,9 @@ class Parser(psyobj):
         self.grammar = grammar
         self.top = top
 
+        #tentative option
+        self.bypassTerribleHypotheses = "selective"
+
         if mode == None:
             self.gamma = gamma
             self.beamF = beamF
@@ -432,10 +435,28 @@ class Parser(psyobj):
             newAnalysis = expandNext.extend(rule, currentWord,
                                             nextWord, self)
 
+            if self.bypassTerribleHypotheses:
+                if newAnalysis.fom == 0:
+                    if "push" in self.verbose:
+                        print >>sys.stderr, "dropped", newAnalysis
+                    continue
+
+            if self.bypassTerribleHypotheses is "selective":
+                if hyps[i + 1]:
+                    bestOption = hyps[i + 1][0].fom
+                    nOptions = len(hyps[i + 1])
+                    beam = bestOption * self.beamF(self.gamma, nOptions)
+
+                    if newAnalysis.fom > beam:
+                        if "push" in self.verbose:
+                            print >>sys.stderr, "dropped", \
+                                  newAnalysis, beam
+                        continue
+
             if "push" in self.verbose:
                 print >>sys.stderr, "pushed", newAnalysis, \
                       "onto", newAnalysis.word
-            
+
             heapq.heappush(hyps[newAnalysis.word], newAnalysis)
             self.pushes += 1
 

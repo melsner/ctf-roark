@@ -334,8 +334,12 @@ class CTFParser(Parser):
                 nOptions = currNOpt
             else:
                 nProcessed += 1
-                self.specifyHyp(processing, gamma, bestOption, nOptions,
+                #XX turn delta back on
+                self.specifyHyp(processing, delta, bestOption, nOptions,
                                 sentence, divergence * currentDiv)
+                #XX previously used gamma only
+#                 self.specifyHyp(processing, gamma, bestOption, nOptions,
+#                                 sentence, divergence * currentDiv)
                 nCreated = len(processing.subLevelHeap)
                 nOptions += nCreated
                 if nCreated == 0 and "specify" in self.verbose:
@@ -508,43 +512,21 @@ if __name__ == "__main__":
 
     debug = ["index", "pop", "push", "threshold",  "specify",
              "subhyp",]
-#    tpar = TargetParse("[0.907997 ROOT_0 -> S_0, 0.238841 S_0 -> NP_0 @S_0, 0.0901318 NP_0 -> NP_0 @NP_0, 0.0371383 NP_0 -> NNP_0 NNP_0, 0.00284306 NNP_0 -> John, 0.000963901 NNP_0 -> Smith, 0.0432695 @NP_0 -> CC_0 NP_0, 0.885406 CC_0 -> and, 0.0371383 NP_0 -> NNP_0 NNP_0, 0.000232915 NNP_0 -> Mary, 8.14088e-05 NNP_0 -> Roe, 0.371818 @S_0 -> VP_0 ._0, 0.0129077 VP_0 -> VBP_0 NP_0, 0.487302 VBP_0 -> are, 0.0426093 NP_0 -> NNS_0, 0.000563345 NNS_0 -> friends, 0.999332 ._0 -> .]")
 
-#     tpar1 = TargetParse("[0.907997 ROOT_0 -> S_0, 0.415826 S_0 -> NP_0 @S_1, 0.0244799 NP_0 -> NP_1 @NP_0, 0.0549577 NP_1 -> NNP_1 NNP_0, 0.00385792 NNP_1 -> John, 0.00185397 NNP_0 -> Smith, 0.0317599 @NP_0 -> CC_1 NP_1, 0.906293 CC_1 -> and, 0.0549577 NP_1 -> NNP_1 NNP_0, 0.000300947 NNP_1 -> Mary, 2.40844e-05 NNP_0 -> Roe, 0.515234 @S_1 -> VP_1 ._1, 0.00399242 VP_1 -> VBP_1 NP_0, 0.616828 VBP_1 -> are, 0.00149858 NP_0 -> NNS_0, 0.000944028 NNS_0 -> friends, 0.999461 ._1 -> .]", level=1)
-
-#     tpar2 = TargetParse("[0.873076 ROOT_0 -> S_1, 0.508448 S_1 -> NP_0 @S_2, 0.0246014 NP_0 -> NP_3 @NP_0, 0.161513 NP_3 -> NNP_3 NNP_0, 0.00684764 NNP_3 -> John, 0.00333055 NNP_0 -> Smith, 0.0632427 @NP_0 -> CC_3 NP_2, 0.835953 CC_3 -> and, 0.0024399 NP_2 -> NNP_3 NNP_0, 0.000534297 NNP_3 -> Mary, 3.70439e-06 NNP_0 -> Roe, 0.79434 @S_2 -> VP_3 ._1, 0.00544183 VP_3 -> VBP_3 NP_1, 0.652744 VBP_3 -> are, 0.00117646 NP_1 -> NNS_1, 0.00152046 NNS_1 -> friends, 0.999461 ._1 -> .]", level=2)
-
-#    tpar = TargetParse("[0.907997 ROOT_0 -> S_0, 0.238841 S_0 -> NP_0 @S_0, 0.0164851 NP_0 -> DT_0 NNS_0, 0.0238421 DT_0 -> The, 0.00986581 NNS_0 -> stocks, 0.371818 @S_0 -> VP_0 ._0, 0.0177314 VP_0 -> VBD_0, 0.0149101 VBD_0 -> fell, 0.999332 ._0 -> .]", options=["expansions"])
-
-#    tpar = TargetParse("(ROOT_0 (S_0 (NP_0 (DT_0 The) (@NP_0 (ADJP_0 (RBS_0 most) (JJ_0 troublesome)) (NN_0 report))) (@S_0 (VP_0 (MD_0 may) (VP_0 (VB_0 be) (NP_0 (NP_0 (DT_0 the) (@NP_0 (NNP_0 August) (@NP_0 (NN_0 merchandise) (@NP_0 (NN_0 trade) (NN_0 deficit))))) (ADJP_0 (JJ_0 due) (@ADJP_0 (ADVP_0 (IN_0 out)) (NP_0 (NN_0 tomorrow))))))) (._0 .))))", tree=True)
-
-    tpar = TargetParse("(ROOT_0 (S_0 (PP_0 (RB_0 Instead) (@PP_0 (IN_0 of) (NP_0 (NP_0 (NN_0 closing) (NNS_0 ranks)) (SBAR_0 (VP_0 (TO_0 to) (VP_0 (VB_0 protect) (@VP_0 (NP_0 (DT_0 the) (@NP_0 (NN_0 firm) (POS_0 's))) (NP_0 (NN_0 reputation))))))))) (@S_0 (,_0 ,) (@S_0 (NP_0 (NP_0 (NP_0 (DT_0 the) (@NP_0 (NN_0 executive) (POS_0 's))) (@NP_0 (JJ_0 internal) (NNS_0 rivals))) (@NP_0 (,_0 ,) (@NP_0 (VP_0 (VBN_0 led) (PP_0 (IN_0 by) (NP_0 (DT_0 a) (@NP_0 (JJ_0 UNK-LC) (NNP_0 American))))) (,_0 ,)))) (@S_0 (@VP_0 (VBP_0 demand) (NP_0 (PRP$_0 his) (NN_0 resignation))) (._0 .))))))", options=["specifications"], tree=True)
+    tpar = TargetParse("""(ROOT_0 (RS_0 (NN_0 Food) (XXlcNN_0 (NNS_0 prices) (XXlcNP_0 (VP_0 (VBP_0 are) (XVlcVBP_0 (VP_0 (VBN_0 expected) (XVlcVBN_0 (S_0 (TO_0 to) (XSlcTO_0 (VP_0 (VB_0 be) (XVlcVB_0 (ADJP_0 (JJ_0 unchanged) (XPlcJJ_0 (XPlcADJP_0 (EPSILON_0 EPSILON)))) (XVlcVP_0 (EPSILON_0 EPSILON)))) (XSlcVP_0 (XSlcS_0 (EPSILON_0 EPSILON))))) (XVlcVP_0 (EPSILON_0 EPSILON)))) (XVlcVP_0 (EPSILON_0 EPSILON)))) (XXlcS_0 (,_0 ,) (@XXlcS_0 (CC_0 but) (@XXlcS_0 (S_0 (NN_0 energy) (XSlcNN_0 (NNS_0 costs) (XSlcNP_0 (VP_0 (VBD_0 jumped) (XVlcVBD_0 (NP_0 (RB_0 as) (XNlcRB_0 (JJ_0 much) (@XNlcRB_0 (IN_0 as) (@XNlcRB_0 (CD_0 4) (XNlcQP_0 (NN_0 %) (XNlcNP_0 (EPSILON_0 EPSILON))))))) (XVlcVP_0 (EPSILON_0 EPSILON)))) (XSlcS_0 (EPSILON_0 EPSILON))))) (XXlcS_0 (,_0 ,) (@XXlcS_0 (VP_0 (VBD_0 said) (XVlcVBD_0 (XVlcVP_0 (EPSILON_0 EPSILON)))) (@XXlcS_0 (NP_0 (NNP_0 Gary) (XNlcNNP_0 (NNP_0 Ciminero) (XNlcNP_0 (,_0 ,) (@XNlcNP_0 (NP_0 (NN_0 economist) (XNlcNN_0 (XNlcNP_0 (PP_0 (IN_0 at) (XPlcIN_0 (NP_0 (NNP_0 Fleet\/Norstar) (XNlcNNP_0 (NNP_0 Financial) (@XNlcNNP_0 (NNP_0 Group) (XNlcNP_0 (EPSILON_0 EPSILON))))) (XPlcPP_0 (EPSILON_0 EPSILON)))) (XNlcNP_0 (EPSILON_0 EPSILON))))) (XNlcNP_0 (EPSILON_0 EPSILON)))))) (@XXlcS_0 (._0 .) (XXlcSINV_0 (XXlcRS_0 (EPSILON_0 EPSILON))))))))))))))""", tree=True, options=["expansions", "quiet"])
 
     parser = CTFParser(grammar, top="ROOT_0", mode="lex",
-                       queueLimit=5e5,
-                       verbose=["index", "level"],
-                       makeAnalysis=HierAnalysis,
-                       gammas=[1e-11, 1e-8, 1e-6, 1e-4],
-                       deltas=[1e-4, 1e-4, 1e-3],
-                       subBeamF=identityBeamF,
-                       beamDivergenceFactor=10,
-                       stepExpansionLimit=500)
+                       #queueLimit=5e5,
+                       verbose=["index", "level", tpar],
+                       gammas=[1e-11, 1e-10, 1e-9, 1e-8],
+                       deltas=[1e-5, 1e-5, 1e-5],
+                       stepExpansionLimit=100)
 
 #    sent = "The stocks fell ."
-    sent = "John Smith and Mary Roe are friends ."
+#    sent = "John Smith and Mary Roe are friends ."
 
-#     import cProfile
-#     cProfile.run('parser.parse(sent.split())', 'profile-out-noiter')
-#     sys.exit(0)
+    sent = "Food prices are expected to be unchanged , but energy costs jumped as much as 4 % , said Gary Ciminero , economist at Fleet\/Norstar Financial Group ."
 
-#['Perhaps', 'the', 'explanation', 'for', 'these', 'UNK-LC-s', 'is', 'that', 'UNK-LC-DASH', 'Britain', 'is', "n't", 'ready', 'to', 'come', 'to', 'terms', 'with', 'the', 'wealth', 'created', 'by', 'the', 'UNK-CAPS', 'UNK-LC-DASH', 'regime', '.']
-#    sent = " ".join(['Views', 'on', 'manufacturing', 'strength', 'are', 'split', 'between', 'economists', 'who', 'read', 'September', "'s", 'low', 'level', 'of', 'factory', 'job', 'growth', 'as', 'a', 'sign', 'of', 'a', 'slowdown', 'and', 'those', 'who', 'use', 'the', 'somewhat', 'more', 'comforting', 'total', 'employment', 'figures', 'in', 'their', 'calculations', '.'])
-
-#    sent = " ".join(['If', 'the', 'UNK-LC-DASH', 'UNK-LC-DASH', 'law', "'s", 'fair', ',', 'Why', 'should', 'we', 'not', 'then', 'amend', 'the', 'UNK-LC', 'To', 'require', 'that', 'all', 'employees', 'give', 'Similar', 'notice', 'before', 'they', 'quit', '?'])
-
-#    sent = " ".join(['Trouble', 'is', ',', 'she', 'has', 'lost', 'it', 'just', 'as', 'quickly', '.'])
-#    sent = "can can and , if"
-#    sent = " ".join(['Instead', 'of', 'closing', 'ranks', 'to', 'protect', 'the', 'firm', "'s", 'reputation', ',', 'the', 'executive', "'s", 'internal', 'rivals', ',', 'led', 'by', 'a', 'UNK-LC', 'American', ',', 'demand', 'his', 'resignation', '.'])
     final = parser.parse(sent.split())
     print final
     print list(final.derivation())

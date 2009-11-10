@@ -237,7 +237,7 @@ class HierGrammar(DBGrammar):
 #                 print >>sys.stderr, "at level", level,\
 #                       nt, "->", word, "=", lap
                 self.lookaheadCache[(level, nt)][word] = lap
-            
+
             for level in self.hierarchy:
 #                print >>sys.stderr, "computing lookaheads for", level
                 for nt in self.hierarchy[level]:
