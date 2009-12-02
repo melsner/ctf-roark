@@ -12,7 +12,7 @@ class TargetParse:
         self.options = options
 
         if tree:
-            self.derivation = treeToDeriv(treeToTuple(tderiv))
+            self.derivation = treeToDeriv(tderiv)
         else:
             self.derivation = []
 
@@ -26,16 +26,17 @@ class TargetParse:
             if rule.rhs[0] == "EPSILON":
                 rule.rhs = []
 
-#         print >>sys.stderr, "Debug: tracking derivation:"
-#         for rule in self.derivation:
-#             print >>sys.stderr, rule
+        print >>sys.stderr, "Debug: tracking derivation:"
+        for rule in self.derivation:
+            print >>sys.stderr, rule
 
     def matches(self, ana):
         if ana.level() != self.level:
             return False
 
         for myRule,theirRule in izip(self.derivation, ana.derivation()):
-            #print "check", myRule, theirRule, myRule == theirRule
+#             print >>sys.stderr, "check", myRule, theirRule, \
+#                   myRule == theirRule
             if myRule != theirRule:
                 return False
         return True

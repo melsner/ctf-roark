@@ -5,6 +5,7 @@ from gzip import GzipFile
 import shelve
 
 from AIMA import DefaultDict
+from Probably import assert_valid_prob
 
 from topdownParser import Grammar, Rule
 from DBGrammar import DBGrammar
@@ -49,6 +50,28 @@ class HierGrammar(DBGrammar):
     def addAncestry(self, childLevel, parent, child):
         self.hierarchy[childLevel][child] = parent
 
+    def makeMapping(self, topLevel):
+        self.pennToLevel = DefaultDict({})
+        for nt in self.hierarchy[topLevel + 1]:
+            level = topLevel + 1
+            ntPar = nt
+            while level > 0:
+                par = self.hierarchy[level][ntPar]
+                self.pennToLevel[level][nt] = par
+
+                ntPar = par
+                level -= 1
+
+    def transform(self, level, tree):
+        if type(tree) is not tuple:
+            return tree
+        lhs = tree[0]
+        if lhs not in self.pennToLevel[level]:
+            par = lhs
+        else:
+            par = self.pennToLevel[level][lhs]
+        return tuple([par,] + [self.transform(level, st) for st in tree[1:]])
+
     def writeback(self, target):
         if target == "hierarchy":
             hierOut = file(self.dirname/"hierarchy", 'wb')
@@ -69,7 +92,13 @@ class HierGrammar(DBGrammar):
             self.intermedRules = DefaultDict(DefaultDict([]))            
 
     def matchRule(self, rule, rules):
-        parLHS = self.hierarchy[rule.level][rule.lhs]
+        try:
+            parLHS = self.hierarchy[rule.level][rule.lhs]
+        except KeyError:
+            print "Error with", rule
+            print "No parent of", rule.lhs, "at", rule.level
+            print self.hierarchy[rule.level]
+            raise
         possMatches = rules[parLHS]
 
         #print "Looking for ancestor of ", rule, "level", rule.level
@@ -114,6 +143,8 @@ class HierGrammar(DBGrammar):
             else:
                 matching.children.append(rule)
 
+#            print "matching rule for", rule, "is", matching
+
             self.intermedRules[rule.level][rule.lhs].append(rule)
 
     def addTerminalRule(self, rule):
@@ -132,6 +163,11 @@ class HierGrammar(DBGrammar):
             if not matching:
                 print >>sys.stderr, "WARNING: Can't find matching rule for",\
                       rule
+                parRule = HierRule(rule.level - 1)
+                parRule.setup(rule.lhs, rule.rhs, rule.prob)
+                self.addTerminalRule(parRule)
+                matching = parRule
+
             matching.children.append(rule)
 
             word = rule.rhs[0]
@@ -234,8 +270,8 @@ class HierGrammar(DBGrammar):
             level = 0
             for nt in self.rules.keys() + self.epsilonRules.keys():
                 lap = self.lookaheadProbFull(nt, word, level)
-#                 print >>sys.stderr, "at level", level,\
-#                       nt, "->", word, "=", lap
+                #print >>sys.stderr, "at level", level,\
+                #      nt, "->", word, "=", lap
                 self.lookaheadCache[(level, nt)][word] = lap
 
             for level in self.hierarchy:
@@ -245,3 +281,46 @@ class HierGrammar(DBGrammar):
 #                     print >>sys.stderr, "at level", level,\
 #                           nt, "->", word, "=", lap
                     self.lookaheadCache[(level, nt)][word] = lap
+
+    def preloadPOSOnly(self, sent):
+        self.terminalRules = DefaultDict({})
+        self.ntToWord = DefaultDict({})
+        self.posToWord = DefaultDict({})
+
+        self.lookaheadCache = DefaultDict({})
+        #add None to load probs for epsilon productions
+        for pos in sent + [None,]:
+            level = 0
+            for nt in self.rules.keys() + self.epsilonRules.keys():
+                lap = self.lookaheadProbFullPOS(nt, pos, level)
+#                 print >>sys.stderr, "at level", level,\
+#                       nt, "->", pos, "=", lap
+                self.lookaheadCache[(level, nt)][pos] = lap
+
+            for level in self.hierarchy:
+#                print >>sys.stderr, "computing lookaheads for", level
+                for nt in self.hierarchy[level]:
+                    lap = self.lookaheadProbFullPOS(nt, pos, level)
+#                     print >>sys.stderr, "at level", level,\
+#                           nt, "->", word, "=", lap
+                    self.lookaheadCache[(level, nt)][pos] = lap
+
+    def lookaheadProbFullPOS(self, nt, pos, level):
+        nt = (level, nt)
+        #eqn 3.30 from Roark
+        if pos is None:
+            #XXX hardcoded name of epsilon nonterm
+            try:
+                res = self.ntToPos[nt]["EPSILON"]
+                #print >>sys.stderr, nt, "to epsilon", res
+                return res
+            except KeyError:
+                return 0
+
+        try:
+            term = self.ntToPos[nt][pos]
+        except KeyError:
+            term = 0
+
+        assert_valid_prob(term)
+        return term
